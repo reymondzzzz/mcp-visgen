@@ -28,7 +28,7 @@ GEMINI_API_KEY=... python -c "from mcp_visgen.server import generate_image; prin
 
 All code is in `mcp_visgen/` package:
 
-- **server.py** — FastMCP server instance, 4 tools (`generate_image`, `regenerate_image`, `refine_image_prompt`, `list_generated_images`), and `_generate()` which calls litellm and extracts the image data URL from the response.
+- **server.py** — FastMCP server instance, 3 tools (`generate_image`, `refine_image_prompt`, `list_generated_images`), and `_generate()` which calls litellm and extracts the image data URL from the response. `generate_image` supports optional `feedback` (regeneration) and `reference_image` (file path read and base64-encoded for multimodal input).
 - **prompts.py** — Prompt refinement: appends style descriptions and quality hints. Also builds regeneration prompts from original + feedback.
 - **storage.py** — Saves base64 data URL images to disk, lists images in output directory.
 

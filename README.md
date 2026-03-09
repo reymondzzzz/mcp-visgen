@@ -21,8 +21,7 @@ claude mcp list
 
 ## Tools
 
-- **generate_image** — Generate an image from a text prompt. Accepts optional `style`, `size`, and `model` override.
-- **regenerate_image** — Regenerate with feedback on what to change
+- **generate_image** — Generate an image from a text prompt. Accepts optional `style`, `size`, `model` override, `feedback` (for regeneration), and `reference_image` (file path to use as visual reference).
 - **refine_image_prompt** — Craft a better prompt before generating
 - **list_generated_images** — List previously generated images
 

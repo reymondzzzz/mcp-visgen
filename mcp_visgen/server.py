@@ -1,4 +1,6 @@
+import base64
 import json
+import mimetypes
 from pathlib import Path
 
 import litellm
@@ -20,11 +22,32 @@ def _get_model() -> str:
     return DEFAULT_MODEL
 
 
-def _generate(prompt: str, model: str | None = None) -> str:
+def _read_image_file(path: str) -> dict:
+    """Read an image file and return a litellm-compatible image_url content block."""
+    file_path = Path(path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"Reference image not found: {path}")
+    mime = mimetypes.guess_type(str(file_path))[0] or "image/png"
+    b64 = base64.b64encode(file_path.read_bytes()).decode()
+    return {
+        "type": "image_url",
+        "image_url": {"url": f"data:{mime};base64,{b64}"},
+    }
+
+
+def _generate(prompt: str, model: str | None = None, reference_image: str | None = None) -> str:
     """Generate an image and return the data URL string."""
+    if reference_image:
+        content = [
+            _read_image_file(reference_image),
+            {"type": "text", "text": prompt},
+        ]
+    else:
+        content = prompt
+
     response = litellm.completion(
         model=model or _get_model(),
-        messages=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": content}],
         modalities=["image", "text"],
     )
     choice = response.choices[0].message
@@ -50,8 +73,10 @@ def generate_image(
     model: str | None = None,
     filename: str | None = None,
     working_directory: str | None = None,
+    feedback: str | None = None,
+    reference_image: str | None = None,
 ) -> str:
-    """Generate an image from a text prompt.
+    """Generate an image from a text prompt, optionally using a reference image or feedback.
 
     Args:
         prompt: Detailed description of the image to generate (be specific).
@@ -60,10 +85,19 @@ def generate_image(
         model: Optional litellm model string to override the default (e.g. "gemini/gemini-2.5-flash-image", "gpt-image-1").
         filename: Optional custom filename (without extension).
         working_directory: Directory where the image should be saved. Pass your project's working directory.
+        feedback: Optional feedback on a previous generation (e.g. "make it darker", "remove the text"). When provided, prompt is treated as the original prompt and a new prompt is built from it + feedback.
+        reference_image: Optional absolute path to an image file to use as visual reference for generation.
     """
     used_model = model or _get_model()
-    refined = refine_prompt(prompt, style, size)
-    data_url = _generate(refined, model=used_model)
+
+    if feedback:
+        refined = build_regeneration_prompt(prompt, feedback)
+        if size and size in SIZE_DESCRIPTIONS:
+            refined += f"\nImage format: {SIZE_DESCRIPTIONS[size]}."
+    else:
+        refined = refine_prompt(prompt, style, size)
+
+    data_url = _generate(refined, model=used_model, reference_image=reference_image)
     filepath = save_image(data_url, filename=filename, working_directory=working_directory)
     rel_path = _relative_path(filepath, working_directory)
 
@@ -74,42 +108,6 @@ def generate_image(
         "prompt_used": refined,
         "model": used_model,
         "usage": f"<img src=\"{rel_path}\" alt=\"{prompt[:60]}\">",
-    })
-
-
-@mcp.tool()
-def regenerate_image(
-    original_prompt: str,
-    feedback: str,
-    size: str | None = None,
-    model: str | None = None,
-    filename: str | None = None,
-    working_directory: str | None = None,
-) -> str:
-    """Regenerate an image with feedback on what to change.
-
-    Args:
-        original_prompt: The prompt that was used for the previous generation.
-        feedback: What to change (e.g. "make it darker", "remove the text", "add more contrast").
-        size: Optional image size/aspect ratio. One of: square, portrait, landscape, wide, 4k, hd.
-        model: Optional litellm model string to override the default.
-        filename: Optional custom filename (without extension).
-        working_directory: Directory where the image should be saved.
-    """
-    used_model = model or _get_model()
-    new_prompt = build_regeneration_prompt(original_prompt, feedback)
-    if size and size in SIZE_DESCRIPTIONS:
-        new_prompt += f"\nImage format: {SIZE_DESCRIPTIONS[size]}."
-    data_url = _generate(new_prompt, model=used_model)
-    filepath = save_image(data_url, filename=filename, working_directory=working_directory)
-    rel_path = _relative_path(filepath, working_directory)
-
-    return json.dumps({
-        "status": "ok",
-        "file": rel_path,
-        "absolute_path": str(filepath),
-        "prompt_used": new_prompt,
-        "model": used_model,
     })
 
 
