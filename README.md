@@ -5,9 +5,9 @@ MCP server for AI vision generation (images, video) via Claude Code. Uses [litel
 ## Install
 
 ```bash
-claude mcp add --transport stdio \
-  --env GEMINI_API_KEY=your-api-key \
-  visgen \
+claude mcp add visgen \
+  --transport stdio \
+  -e GEMINI_API_KEY=your-api-key \
   -- uvx --from git+https://github.com/reymondzzzz/mcp-visgen mcp-visgen
 ```
 
@@ -41,9 +41,9 @@ Pass a different `model` to the tool (e.g. `gpt-image-1`) and set the provider's
 
 ```bash
 # OpenAI
-claude mcp add --transport stdio \
-  --env OPENAI_API_KEY=sk-... \
-  visgen \
+claude mcp add visgen \
+  --transport stdio \
+  -e OPENAI_API_KEY=sk-... \
   -- uvx --from git+https://github.com/reymondzzzz/mcp-visgen mcp-visgen
 ```
 
