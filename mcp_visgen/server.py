@@ -35,13 +35,13 @@ def _read_image_file(path: str) -> dict:
     }
 
 
-def _generate(prompt: str, model: str | None = None, reference_image: str | None = None) -> str:
+def _generate(prompt: str, model: str | None = None, reference_images: list[str] | None = None) -> str:
     """Generate an image and return the data URL string."""
-    if reference_image:
-        content = [
-            _read_image_file(reference_image),
-            {"type": "text", "text": prompt},
-        ]
+    if reference_images:
+        if len(reference_images) > 10:
+            raise ValueError(f"Maximum 10 reference images allowed, got {len(reference_images)}")
+        content = [_read_image_file(path) for path in reference_images]
+        content.append({"type": "text", "text": prompt})
     else:
         content = prompt
 
@@ -74,9 +74,9 @@ def generate_image(
     filename: str | None = None,
     working_directory: str | None = None,
     feedback: str | None = None,
-    reference_image: str | None = None,
+    reference_images: list[str] | None = None,
 ) -> str:
-    """Generate an image from a text prompt, optionally using a reference image or feedback.
+    """Generate an image from a text prompt, optionally using reference images or feedback.
 
     Args:
         prompt: Detailed description of the image to generate (be specific).
@@ -86,7 +86,7 @@ def generate_image(
         filename: Optional custom filename (without extension).
         working_directory: Directory where the image should be saved. Pass your project's working directory.
         feedback: Optional feedback on a previous generation (e.g. "make it darker", "remove the text"). When provided, prompt is treated as the original prompt and a new prompt is built from it + feedback.
-        reference_image: Optional absolute path to an image file to use as visual reference for generation.
+        reference_images: Optional list of absolute paths to image files to use as visual references for generation.
     """
     used_model = model or _get_model()
 
@@ -97,7 +97,7 @@ def generate_image(
     else:
         refined = refine_prompt(prompt, style, size)
 
-    data_url = _generate(refined, model=used_model, reference_image=reference_image)
+    data_url = _generate(refined, model=used_model, reference_images=reference_images)
     filepath = save_image(data_url, filename=filename, working_directory=working_directory)
     rel_path = _relative_path(filepath, working_directory)
 
